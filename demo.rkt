@@ -7,9 +7,7 @@ use_static_dot
 10 * (-3) + 2
 10 + (-3) * 2
 
-{
-  #false || !(#false || #false)
-}
+#false || !(#false || #false)
 
 "hello" +$ " " +$ "world"
 
@@ -77,7 +75,7 @@ def Posn(px, py) -: Posn: Posn(1, 2)
 cons(px, py)
 
 def identity: fun (x): x
-identity(1 + fun (x) { x } (99) )
+identity(1 + (fun (x): x) (99) )
 
 size
 
