@@ -1,6 +1,7 @@
 #lang racket/base
 (require (for-syntax racket/base
                      syntax/parse
+                     racket/syntax
                      "srcloc.rkt"
                      "consistent.rkt"
                      "with-syntax.rkt")
@@ -15,6 +16,8 @@
          "ref-result-key.rkt"
          "static-info.rkt"
          "annotation.rkt"
+         (only-in "underscore.rkt"
+                  [_ rhombus-_])
          (only-in "quasiquote.rkt"
                   [... rhombus...])
          (submod "annotation.rkt" for-class)
@@ -457,6 +460,18 @@
          val))
 
 (begin-for-syntax
+  (define (gen-id _-id)
+    (syntax-track-origin (generate-temporary '_) _-id #'_))
+
+  (define-syntax-class :maybe-underscore
+    #:datum-literals (op block group)
+    (pattern (group (~and id* (~literal rhombus-_)))
+             #:with id (gen-id #'id*)
+             #:attr id-group #`(group id))
+    (pattern _
+             #:attr id #f
+             #:attr id-group #f))
+
   (define-syntax-class :kw-expression
     #:datum-literals (op block group)
     (pattern (group kw:keyword (block (group e ...)))
@@ -466,7 +481,7 @@
              #:attr kw #'#f
              #:attr parsed #'exp.parsed)))
 
-(define-for-syntax (parse-function-call rator-in stxes)
+(define-for-syntax (parse-simple-function-call rator-in stxes)
   (define rator (rhombus-local-expand rator-in))
   (syntax-parse stxes
     [(_ ((~and head (~datum parens)) rand::kw-expression ...) . tail)
@@ -483,3 +498,12 @@
                                      #'()))
      (values (wrap-static-info* e result-static-infos)
              #'tail)]))
+
+(define-for-syntax (parse-function-call rator-in stxes)
+  (syntax-parse stxes
+    [(_ ((~and head (~datum parens)) rand::maybe-underscore ...) . tail)
+     #:when (pair? (syntax-e #'((~? rand.id) ...)))
+     #:with stxes* #'(#%call (head (~? rand.id-group rand) ...) .  tail)
+     (define-values (call tail) (parse-simple-function-call rator-in #'stxes*))
+     (values #`(λ ((~@ (~? rand.id) ...)) #,call) tail)]
+    [_ (parse-simple-function-call rator-in stxes)]))
