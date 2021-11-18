@@ -3,7 +3,8 @@
                      syntax/parse)
          "expression.rkt"
          "binding.rkt"
-         "expression+binding.rkt")
+         "expression+binding.rkt"
+         "parse.rkt")
 
 (provide (rename-out [rhombus-_ _]))
 
@@ -15,6 +16,12 @@
    ;; expression
    (lambda (stx)
      (syntax-parse stx
+       #:datum-literals (op)
+       [(form-id . tail)
+        (values
+         #`(lambda (x) (rhombus-expression (group x . tail)))
+         #'())
+        ]
        [(form-id . tail)
         (raise-syntax-error #f
                             (string-append "not allowed as an expression;\n"
